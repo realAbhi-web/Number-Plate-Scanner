@@ -46,8 +46,13 @@ def loader_user(user_id):
 def home_page():
     return render_template('index.html')
 
-@app.route('/form')
+@app.route('/form', methods=["GET","POST"])
 def form():
+    if request.method=="POST":
+        number_plate=request.form.get("form-page-number-plate")
+        rto_info(number_plate)
+        # print(number_plate)
+        # print(type(number_plate))
     return render_template('form.html') 
 
 @app.route("/log_in", methods=["GET","POST"])
