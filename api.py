@@ -2,7 +2,7 @@ import http.client
 
 conn = http.client.HTTPSConnection("rto-vehicle-information-india.p.rapidapi.com")
 
-payload = "{\"vehicle_no\":\"HP20C2190\",\"consent\":\"Y\",\"consent_text\":\"I hereby give my consent for Eccentric Labs API to fetch my information\"}"
+payload = "{\"vehicle_no\":\"HP20E0002\",\"consent\":\"Y\",\"consent_text\":\"I hereby give my consent for Eccentric Labs API to fetch my information\"}"
 
 headers = {
     'x-rapidapi-key': "b8059600d5mshe02ad4b22a4ebbep1d31aajsn15d92fe5ebbb",
