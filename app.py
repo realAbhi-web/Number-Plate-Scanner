@@ -4,10 +4,10 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user
 
 import os
 # from twilio.rest import Client
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 
 # Load environment variables from the .env file
-load_dotenv()
+# load_dotenv()
 # login_manager = LoginManager()
 
 # account_sid = "ACc7f300e177e5b63d1cb072ff94b8b139"
