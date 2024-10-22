@@ -1,7 +1,9 @@
 from flask import Flask, render_template, request, url_for, redirect
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user
-
+from api import rto_info
+import http.client
+import json
 import os
 # from twilio.rest import Client
 # from dotenv import load_dotenv
@@ -43,6 +45,10 @@ def loader_user(user_id):
 @app.route("/")
 def home_page():
     return render_template('index.html')
+
+@app.route('/form')
+def form():
+    return render_template('form.html') 
 
 @app.route("/log_in", methods=["GET","POST"])
 def log_in():
