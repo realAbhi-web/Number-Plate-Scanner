@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Capture Number Plate</title>
+    <style>
+        video {
+            width: 100%;
+            max-width: 600px;
+            border: 1px solid black;
+        }
+        canvas {
+            display: none; /* We can use canvas to hold the captured image */
+        }
+    </style>
+</head>
+<body>
+
+<h1>Capture Number Plate</h1>
+<video id="video" autoplay></video>
+<button id="capture">Capture Number Plate</button>
+<canvas id="canvas"></canvas>
+
+<script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const context = canvas.getContext('2d');
+    const captureButton = document.getElementById('capture');
+
+    // Access user's camera
+    navigator.mediaDevices.getUserMedia({ video: true })
+        .then(stream => {
+            video.srcObject = stream;
+        })
+        .catch(error => {
+            console.error('Error accessing the camera: ', error);
+        });
+
+    // Capture image from video
+    captureButton.addEventListener('click', () => {
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const imageData = canvas.toDataURL('image/png');
+
+        // Here, you would typically send the imageData to your server or API
+        console.log(imageData); // You can see the captured image in base64 format
+
+        // Example: Sending to an API (replace `YOUR_API_URL` with actual URL)
+        fetch('YOUR_API_URL', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ image: imageData })
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Success:', data);
+            // Handle API response
+        })
+        .catch((error) => {
+            console.error('Error:', error);
+        });
+    });
+</script>
+
+</body>
+</html>

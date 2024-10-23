@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, url_for, redirect
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user
-from api import rto_info
+from api import rto_info, twilio_call
 import http.client
 import json
 import os
@@ -24,15 +24,24 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///your_database.db'
 db=SQLAlchemy(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
+car_dictionary={}
 
 class Users(db.Model):
       id = db.Column(db.Integer, primary_key=True)
       name=db.Column(db.String(100), nullable=True)
-      number_plate=db.Column(db.Integer,unique=True,nullable=False)
-      phone_number=db.Column(db.Integer,unique=True,nullable=False)
+      car_owner_name=db.Column(db.String(30))
+      number_plate=db.Column(db.String,unique=True,nullable=False)
+      phone_number=db.Column(db.String,unique=True,nullable=False)
       email=db.Column(db.String)
-      car=db.Column(db.String)
+      car_model=db.Column(db.String)
       password=db.Column(db.String)
+      fuel_type=db.Column(db.String(30))
+      engine_number=db.Column(db.String(50))
+      insurance_upto=db.Column(db.String(20))
+      insurance_company=db.Column(db.String(30))
+      vehicle_color=db.Column(db.String(10))
+      seat_capacity=db.Column(db.String(10))
+      manufacturing_time=db.Column(db.String(20))
 
 
 
@@ -46,11 +55,39 @@ def loader_user(user_id):
 def home_page():
     return render_template('index.html')
 
+@app.route('/twilio_click', methods=["GET","POST"])
+def call():
+    message=twilio_call(car_dictionary["phone_number"])
+
+    return message
+
+
 @app.route('/form', methods=["GET","POST"])
 def form():
     if request.method=="POST":
         number_plate=request.form.get("form-page-number-plate")
-        rto_info(number_plate)
+        number_plate=number_plate.upper()
+        user = Users.query.filter_by(number_plate=number_plate).first()
+        if user is not None:  # Check if a user was found
+            car_dictionary = {
+                "car_model": user.car_model,
+                "owner_name": user.car_owner_name,
+                "fuel_type": user.fuel_type,
+                "engine_number": user.engine_number,
+                "insurance_upto": user.insurance_upto,
+                "insurance_company": user.insurance_company,
+                "vehicle_color": user.vehicle_color,
+                "seat_capacity": user.seat_capacity,
+                "manufacturing_time": user.manufacturing_time,
+                "phone_number":user.phone_number
+            }
+        else:
+            car_dictionary=rto_info(number_plate)
+        # print(number_plate)
+        # print(car_dictionary['fuel_type'])
+        # print(car_dictionary['car_model'])
+        # print(car_dictionary['owner_name'])
+        return render_template("search.html",car_dictionary=car_dictionary)
         # print(number_plate)
         # print(type(number_plate))
     return render_template('form.html') 
@@ -64,8 +101,11 @@ def log_in():
         if user.email == request.form.get("password-log-in-form"):
             # Use the login_user method to log in the user
             login_user(user)
-            print(user)
+            # print(user)
             return redirect(url_for("home_page"))
+        else:
+            error="invalid email or password"
+            return render_template("log_in.html",error=error)
 
 
     return render_template("log_in.html")
@@ -73,8 +113,14 @@ def log_in():
 @app.route("/sign_up", methods=["GET","POST"])
 def sign_up():
     if request.method=="POST":
-        user=Users(name=request.form.get("name-form"), number_plate=request.form.get("number-plate-form"), 
-        phone_number=request.form.get("phone-number-form"), email=request.form.get("email-address-form"), car=request.form.get("car-form"), password=request.form.get("password-form"))
+        user = Users(
+            name=request.form.get("name-form"),
+            number_plate=request.form.get("number-plate-form"),
+            phone_number=request.form.get("phone-number-form"),
+            email=request.form.get("email-address-form"),
+            car_model=request.form.get("car-form"),
+            password=request.form.get("password-form")  # Make sure to save the password
+        )
         db.session.add(user)
         db.session.commit()
         # print(user)
@@ -96,3 +142,7 @@ if __name__ == '__main__':
 
       #   print(call.sid)
         app.run(debug=True)
+
+
+
+        
