@@ -11,7 +11,9 @@ from PIL import Image
 import base64
 import io
 
-pytesseract.pytesseract.tesseract_cmd = r'/usr/bin/tesseract'
+
+pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"  # Set to your correct path
+
 
 
 
@@ -80,21 +82,22 @@ def photo_page():
 @app.route('/process_image', methods=['POST'])
 def process_image():
     try:
-        # Get the image data from the request
-        data = request.get_json()
-        image_data = data.get('image')
+        # # Get the image data from the request
+        # data = request.get_json()
+        # image_data = data.get('image')
 
-        if not image_data:
-            return jsonify({"error": "No image data provided"}), 400
+        # if not image_data:
+        #     return jsonify({"error": "No image data provided"}), 400
 
-        # Convert the base64 image data to an actual image
-        image = convert_base64_to_image(image_data)
+        # # Convert the base64 image data to an actual image
+        # image = convert_base64_to_image(image_data)
 
-        # Convert the image to text using pytesseract OCR
-        text = convert_image_to_text(image)
+        # # Convert the image to text using pytesseract OCR
+        # text = convert_image_to_text(image)
 
         # Return the result
-        return jsonify({'plate_text': text})
+        # return jsonify({'plate_text': text})
+        return render_template("contact.html")
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -167,44 +170,90 @@ def form():
         # print(type(number_plate))
     return render_template('form.html') 
 
-@app.route("/log_in", methods=["GET","POST"])
+# @app.route("/log_in", methods=["GET","POST"])
+# def log_in():
+#     if request.method=="POST":
+#         user = Users.query.filter_by(email=request.form.get("email-log-in-form")).first()
+#         # Check if the password entered is the 
+#         # same as the user's password
+#         if user.password == request.form.get("password-log-in-form"):
+#             # Use the login_user method to log in the user
+#             login_user(user)
+#             flash('You have been logged in ,',user.name)
+#             # print(user)
+#             return redirect(url_for("home_page"))
+#         else:
+#             error="invalid email or password"
+#             return render_template("log_in.html",error=error)
+
+
+#     return render_template("log_in.html")
+
+@app.route("/log_in", methods=["GET", "POST"])
 def log_in():
-    if request.method=="POST":
-        user = Users.query.filter_by(email=request.form.get("email-log-in-form")).first()
-        # Check if the password entered is the 
-        # same as the user's password
-        if user.password == request.form.get("password-log-in-form"):
-            # Use the login_user method to log in the user
-            login_user(user)
-            flash('You have been logged in ,',user.name)
-            # print(user)
-            return redirect(url_for("home_page"))
-        else:
-            error="invalid email or password"
-            return render_template("log_in.html",error=error)
+    if request.method == "POST":
+        try:
+            # Retrieve user by email           
+            user = Users.query.filter_by(email=request.form.get("email-log-in-form")).first()
+            
+            # If user exists and password matches
+            if user and user.password == request.form.get("password-log-in-form"):
+                login_user(user)  # Log the user in
+                flash(f'Welcome, {user.name}! You have been logged in.', 'success')
+                return redirect(url_for("home_page"))
+            else:
+                # If login credentials are invalid
+                flash("Invalid email or password", "danger")
+                return render_template("log_in.html")
+        
+        except Exception as e:
+            # Handle any unexpected errors
+            flash(f"An error occurred: {str(e)}", "danger")
+            return render_template("log_in.html")
 
-
+    # Render login page for GET requests
     return render_template("log_in.html")
 
+# @app.route("/sign_up", methods=["GET", "POST"])
+# def sign_up():
+#     if request.method == "POST":
+#         user = Users(
+#             name=request.form.get("name-form"),
+#             number_plate=request.form.get("number-plate-form").upper(),  # Convert to uppercase here
+#             phone_number=request.form.get("phone-number-form"),
+#             email=request.form.get("email-address-form"),
+#             car_model=request.form.get("car-form").upper(),  # Make sure car_model is also in uppercase
+#             password=request.form.get("password-form")  # Make sure to save the password
+#         )
+#         db.session.add(user)
+#         print("User added:")
+#         print("Number Plate:", user.number_plate)  # This should now be uppercase
+#         print("Phone Number:", user.phone_number)
+#         db.session.commit()
+#         return redirect("/")
+#     return render_template("Sign_up.html")
 @app.route("/sign_up", methods=["GET", "POST"])
 def sign_up():
     if request.method == "POST":
-        user = Users(
-            name=request.form.get("name-form"),
-            number_plate=request.form.get("number-plate-form").upper(),  # Convert to uppercase here
-            phone_number=request.form.get("phone-number-form"),
-            email=request.form.get("email-address-form"),
-            car_model=request.form.get("car-form").upper(),  # Make sure car_model is also in uppercase
-            password=request.form.get("password-form")  # Make sure to save the password
-        )
-        db.session.add(user)
-        print("User added:")
-        print("Number Plate:", user.number_plate)  # This should now be uppercase
-        print("Phone Number:", user.phone_number)
-        db.session.commit()
-        return redirect("/")
+        try:
+            user = Users(
+                name=request.form.get("name-form"),
+                number_plate=request.form.get("number-plate-form").upper(),  # Convert to uppercase here
+                phone_number=request.form.get("phone-number-form"),
+                email=request.form.get("email-address-form"),
+                car_model=request.form.get("car-form").upper(),  # Ensure car_model is also in uppercase
+                password=request.form.get("password-form")  # Make sure to save the password
+            )
+            db.session.add(user)
+            db.session.commit()
+            print("User added successfully.")
+            return redirect("/")
+        except Exception as e:
+            db.session.rollback()  # Rollback in case of an error
+            print(f"Error adding user: {e}")
+            flash("There was an issue signing you up. Please try again.", "danger")
+            return render_template("Sign_up.html")
     return render_template("Sign_up.html")
-
         # db.create_all() 
 with app.app_context():
     try:
