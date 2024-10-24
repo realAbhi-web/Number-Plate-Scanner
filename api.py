@@ -16,7 +16,7 @@ def rto_info(number_plate):
 
         # Headers
         headers = {
-            'x-rapidapi-key': "f8276d44e4msha8b9e2293a1cdc3p1af0bcjsn6e307217f931",  # Replace with your actual API key
+            'x-rapidapi-key': "0b55234a7fmshe7ce95ba5e3dee3p1c6760jsne74bf1532498",  # Replace with your actual API key
             'x-rapidapi-host': "rto-vehicle-information-india.p.rapidapi.com",
             'Content-Type': "application/json"
         }
@@ -70,8 +70,45 @@ def twilio_call(number):
         return "Having Problems sending message to this number"
 
 
+from flask import request, jsonify
+import cv2
+import numpy as np
+import pytesseract
+import base64
 
+# from flask import request, jsonify
+# import cv2
+# import numpy as np
+# import pytesseract
+# import base64
 
+def process_image():
+    try:
+        # Extract base64 image data from the request
+        data = request.json['image']
+        image_data = base64.b64decode(data.split(',')[1])  # Decode the base64 image
+
+        # Convert the image data to a NumPy array and then to OpenCV format
+        np_arr = np.frombuffer(image_data, np.uint8)
+        img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+
+        # Convert to grayscale for plate detection
+        img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        plate_cascade = cv2.CascadeClassifier('cascades/haarcascade_russian_plate_number.xml')
+
+        plates = plate_cascade.detectMultiScale(img_gray, 1.1, 4)
+
+        plate_text = "No plate detected"
+        for (x, y, w, h) in plates:
+            img_roi = img[y:y + h, x:x + w]
+            plate_text = pytesseract.image_to_string(img_roi, config='--psm 8')
+
+        # Return the detected plate text
+        return jsonify({'plate_text': plate_text})
+
+    except Exception as e:
+        print(f"Error processing image: {e}")
+        return jsonify({'error': 'Failed to process image'}), 500
 
 
 
@@ -112,5 +149,5 @@ def twilio_call(number):
 #         print(f"Error fetching data: {e}")
 #         return {}
 
-# m=rto_info("HP20C2190")
-# print(m)
+m=rto_info("HP20C2190")
+print(m)

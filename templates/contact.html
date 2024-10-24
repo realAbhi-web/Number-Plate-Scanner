@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Sign-Up Form</title>
+    <title>Contact Us</title>
 
     <style>
       @import url("https://fonts.googleapis.com/css?family=Fjalla+One&display=swap");
@@ -12,12 +12,12 @@
         background: url("https://s3-us-west-2.amazonaws.com/s.cdpn.io/38816/image-from-rawpixel-id-2210775-jpeg.jpg")
           center center no-repeat;
         background-size: cover;
-        width: 100vw;
-        height: 100vh;
-        display: grid;
-        align-items: center;
-        justify-items: center;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
       }
+
       * {
         margin: 0;
         padding: 0;
@@ -30,9 +30,10 @@
         box-shadow: 15px 15px 1px #ffa580, 15px 15px 1px 2px rgba(0, 0, 0, 1);
         text-align: center;
         max-width: 500px;
+        margin: auto; /* Center the form vertically */
       }
 
-      input {
+      input, textarea {
         display: block;
         width: 100%;
         font-size: 14pt;
@@ -48,7 +49,7 @@
         color: rgba(0, 0, 0, 1);
       }
 
-      input:focus {
+      input:focus, textarea:focus {
         border-bottom: 5px solid #ffa580;
       }
 
@@ -84,24 +85,55 @@
         -webkit-box-shadow: 0 0 0px 1000px #f8f4e5 inset;
         transition: background-color 5000s ease-in-out 0s;
       }
+
+      footer {
+        background: #f8f4e5;
+        padding: 20px 50px;
+        border-top: 2px solid rgba(0, 0, 0, 1);
+        box-shadow: 0px -3px 1px 1px #ffa580, 0px -3px 1px 2px rgba(0, 0, 0, 1);
+        width: 100%;
+        text-align: center;
+        font-family: "Fjalla One", sans-serif;
+        margin-top: auto; /* Pushes the footer to the bottom */
+      }
+
+      footer p {
+        margin: 5px 0;
+        color: rgba(0, 0, 0, 1);
+      }
+
+      footer a {
+        color: #ffa580;
+        text-decoration: none;
+      }
+
+      footer a:hover {
+        color: rgba(0, 0, 0, 1);
+      }
     </style>
   </head>
 
   <body>
-    <!-- Sign-Up Form -->
+    
+    <!-- Contact Form -->
     <div class="form-container">
-      <h2>Sign Up</h2>
+      <h2>Contact Us</h2>
 
-      <!-- Form Structure -->
-      <form name="sign_up_form" method="POST">
-        <input placeholder="Username" type="text" name="name-form" required />
-        <input placeholder="Email Address" type="email" name="email-address-form" required />
-        <input placeholder="Phone Number" type="text" name="phone-number-form" required />
-        <input placeholder="Your Car's Number" type="text" name="number-plate-form" required />
-        <!-- <input placeholder="Your Car's Model" type="text" name="car-form" required /> -->
-        <input placeholder="Password" type="password" name="password-form" required />
+      <!-- Contact Form Structure -->
+      <form action="#" method="post">
+        <input type="text" name="name" placeholder="Your Name" required />
+        <input type="email" name="email" placeholder="Your Email" required />
+        <input name="message" placeholder="Your Message" required></input>
         <button type="submit">Submit</button>
       </form>
     </div>
+
+    <!-- Footer Section -->
+    <footer>
+      <p>Vehicle Service</p>
+      <p>1234 Street Name, City, Country</p>
+      <p>Phone: +123 456 7890 | Email: <a href="mailto:info@vehicleservice.com">info@vehicleservice.com</a></p>
+      <p>&copy; 2024 Vehicle Service. All Rights Reserved.</p>
+    </footer>
   </body>
 </html>

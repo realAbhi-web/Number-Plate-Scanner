@@ -1,40 +1,32 @@
-import cv2
-harcascade="haarcascade_russian_plate_number.xml"
-cap=cv2.VideoCapture(0)
-cap.set(3,640)
-cap.set(3,480)
+import pytesseract
+from PIL import Image
+import os
 
-min_area=500
-count=0
+# If you're using Windows, set the path to the tesseract executable
+# pytesseract.pytesseract.tesseract_cmd = r'/home/abhinandan/Downloads/funny-message-license-plate_23-2150165791.webp'
 
-while True:
-    success,img=cap.read()
+pytesseract.pytesseract.tesseract_cmd = r'/usr/bin/tesseract'  # Example for Linux
 
-    plate_cascade=cv2.CascadeClassifier(harcascade)
-    img_gray=cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-    plates = plate_cascade.detectMultiScale(img_gray,1.1,4)
+def convert_image_to_text(image_path):
+    try:
+        # Open the image file
+        img = Image.open(image_path)
+        
+        # Use pytesseract to do OCR on the image
+        text = pytesseract.image_to_string(img)
+        
+        return text
+    except Exception as e:
+        return str(e)
 
-    for (x,y,w,h) in plates:
-        area=w*h
-
-        if area > min_area:
-            cv2.rectangle(img,(x,y),(x+w,y+h),(0,255,0),2)
-            cv2.putText(img,"Number Plate",(x,y-5),cv2.FONT_HERSHEY_COMPLEX_SMALL,1,(255,0,255),2)
-             
-            img_roi=img[y:y+h,x:x+w]
-            cv2.imshow("ROI",img_roi)
+if __name__ == '__main__':
+    # Specify the path to your image
+    image_file = '/home/abhinandan/Downloads/funny-message-license-plate_23-2150165791.webp'  # Replace with your image file path
     
-    cv2.imshow("Result",img)
-    # dafault code to close window
-    if cv2.waitKey(1) & 0xFF==ord('q'):
-            break
-
-    if cv2.waitKey(1) & 0xFF==ord('s'):
-        cv2.imwrite("plates/scaned_img_" + str(count) + ".jpg" , img_roi)
-        cv2.rectangle(img,(0,200),(640,300),(0,255,0) , cv2.FILLED)
-        cv2.putText(img,"Plate saved",(150,265),cv2.FONT_HERSHEY_COMPLEX_SMALL,1,(0,0,255),2)
-
-        cv2.imshow("Results",img)
-        cv2.waitKey(500)
-        count+=1
+    # Convert the image to text
+    extracted_text = convert_image_to_text(image_file)
+    
+    # Print the extracted text
+    print("Extracted Text:")
+    print(extracted_text)
