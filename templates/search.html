@@ -24,6 +24,10 @@
         <h3>Insurance_upto: {{ car_dictionary["insurance_upto"] | default("Not Available") }}</h3>
         <h3>Insurance_company: {{ car_dictionary["insurance_company"] | default("Not Available") }}</h3>
         <h3>Manufacturing Time: {{ car_dictionary["manufacturing_time"] | default("Not Available") }}</h3>
+        <h3 style="color: red; font-weight: bold;">{% if car_dictionary.get('criminal_activity', False) %}
+                WARNING: This car is involved in criminal activity!
+        {% endif %}
+        </h3>
             
             
             
@@ -36,6 +40,12 @@
         <!-- <input type="text" name="data" placeholder="Enter some data" required> -->
         <button type="submit">Call the owner!</button>
     </form>
+
+    <form method="POST" action="{{url_for('emergency_call')}}">
+        <!-- <input type="text" name="data" placeholder="Enter some data" required> -->
+        <button type="submit">Report an accident!</button>
+    </form>
+
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>

@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, url_for, redirect, session, jsonify, flash
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager, UserMixin, login_user, logout_user
+from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user
 from api import rto_info, twilio_call, process_image
 from priyanshu import convert_image_to_text
 import http.client
@@ -10,11 +10,25 @@ import pytesseract
 from PIL import Image
 import base64
 import io
+import numpy as np
+import cv2
+import traceback
+from io import BytesIO
+import requests
 
+UPLOAD_FOLDER = os.path.join('static', 'images')
 
 pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"  # Set to your correct path
 
 
+def clear_terminal():
+    if os.name == 'nt':  # If the operating system is Windows
+        os.system('cls')
+    else:  # If it's Linux or macOS
+        os.system('clear')
+
+# Example usage
+# clear_terminal()
 
 
 
@@ -33,7 +47,7 @@ class Users(db.Model, UserMixin):
       name=db.Column(db.String(100), nullable=True)
       car_owner_name=db.Column(db.String(30))
       number_plate=db.Column(db.String,unique=True,nullable=False)
-      phone_number=db.Column(db.String,unique=True,nullable=False)
+      phone_number=db.Column(db.String,unique=True)
       email=db.Column(db.String)
       car_model=db.Column(db.String)
       password=db.Column(db.String)
@@ -44,6 +58,9 @@ class Users(db.Model, UserMixin):
       vehicle_color=db.Column(db.String(10))
       seat_capacity=db.Column(db.String(10))
       manufacturing_time=db.Column(db.String(20))
+      criminal_activity=db.Column(db.Boolean, default=False)
+      emergency_contact=db.Column(db.String(20), nullable=True)
+      is_admin = db.Column(db.Boolean, default=False)
 
 
 
@@ -53,24 +70,44 @@ def loader_user(user_id):
     return Users.query.get(user_id)
 
 
+@app.route("/emergency_call", methods=["GET", "POST"])
+def emergency_call():
+    # clear_terminal()
+    print("we are in emergency function")
+    if request.method == "POST":
+        car_dictionary = session.get('car_dictionary', {})
+        emergency_number = car_dictionary.get("emergency_contact")
+        print("we are in first if")
+        # if emergency_number:
+        try:
+            print("We are in try")
+            msg=twilio_call(emergency_number)
+            print("twilio call function has been made")
+            print(msg)
+            # flash("Emergency call initiated successfully.", "success")
+        except Exception as e:
+            print("An error occured while twilio cal", e)
+        # else:
+        #     flash("Emergency contact number not found.", "danger")
+        #     print("we are in else block WARNING!")
+        
+    return redirect(url_for("home_page"))
+
+
 @app.route("/")
 def home_page():
     return render_template('index.html')
 
 def convert_base64_to_image(base64_string):
-    # Decode the base64 image data
-    image_data = base64.b64decode(base64_string.split(',')[1])
-    
-    # Convert the binary data to an image
-    image = Image.open(io.BytesIO(image_data))
-    
-    return image
+    image_data = base64.b64decode(base64_string.split(',')[1])  # Decode base64
+    np_arr = np.frombuffer(image_data, np.uint8)  # Convert binary data to numpy array
+    img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)  # Convert to OpenCV image
+    return img
 
 
 def convert_image_to_text(image):
     try:
-        # Use pytesseract to extract text from the image
-        text = pytesseract.image_to_string(image)
+        text = pytesseract.image_to_string(image, config='--psm 8')  # Tesseract OCR
         return text
     except Exception as e:
         return str(e)
@@ -79,29 +116,76 @@ def convert_image_to_text(image):
 def photo_page():
     return render_template("photo.html")
 
+def process_image(image_base64):
+    try:
+        # Convert base64 image to OpenCV format
+        img = convert_base64_to_image(image_base64)
+
+        # Convert to grayscale (this is important for many image processing tasks)
+        img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+        # Load the pre-trained Haar Cascade for number plate detection
+        plate_cascade = cv2.CascadeClassifier('cascades/haarcascade_russian_plate_number.xml')
+
+        if plate_cascade.empty():
+            return {'error': 'Cascade classifier not found'}
+
+        # Detect plates in the grayscale image
+        plates = plate_cascade.detectMultiScale(img_gray, 1.1, 4)
+
+        # If no plates are detected, return an error
+        if len(plates) == 0:
+            return {'plate_text': "No plate detected"}
+
+        # For each detected plate, extract the region of interest (ROI) and apply OCR
+        for (x, y, w, h) in plates:
+            img_roi = img[y:y + h, x:x + w]  # Region of interest
+            plate_text = convert_image_to_text(img_roi)  # Extract text from the ROI
+
+        # Return the detected plate text
+        return {'plate_text': plate_text}
+
+    except Exception as e:
+        print(f"Error processing image: {e}")
+        traceback.print_exc()
+        return {'error': 'Failed to process image'}
+
+API_URL = "http://www.ocrwebservice.com/restservices/processDocument"
+API_LICENSE_KEY = "ECC8AB9D-01D4-4750-A099-316B6760737D"  # Your license key
+API_USERNAME = "ABHINANDAN"  # Your username
+
 @app.route('/process_image', methods=['POST'])
 def process_image():
+    data = request.get_json()
+    
+    if 'image' not in data:
+        return jsonify({'error': 'No image data provided'}), 400
+    
     try:
-        # # Get the image data from the request
-        # data = request.get_json()
-        # image_data = data.get('image')
+        # Decode the base64 image (removing the data URL scheme: 'data:image/png;base64,')
+        image_data = data['image'].split(',')[1]
+        image_bytes = base64.b64decode(image_data)
+        
+        # Convert the image bytes into a PIL Image
+        image = Image.open(BytesIO(image_bytes))
+        
+        # Generate a unique filename (for example using time)
+        filename = 'captured_image.png'  # You can also use a unique identifier for each image
+        
+        # Save the image to the static/images folder
+        image_path = os.path.join(UPLOAD_FOLDER, filename)
+        image.save(image_path)
 
-        # if not image_data:
-        #     return jsonify({"error": "No image data provided"}), 400
+        # You can now access the image like this: http://localhost:5000/static/images/captured_image.png
+        image_url = url_for('static', filename=f'images/{filename}', _external=True)
 
-        # # Convert the base64 image data to an actual image
-        # image = convert_base64_to_image(image_data)
+        # Perform OCR or any other image processing here
+        
+        # For this example, let's just return the image URL
+        return jsonify({'image_url': image_url, 'plate_text': 'Sample Plate Text'}), 200
 
-        # # Convert the image to text using pytesseract OCR
-        # text = convert_image_to_text(image)
-
-        # Return the result
-        # return jsonify({'plate_text': text})
-        return render_template("contact.html")
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
-
 
 # @app.route('/process_image', methods=['POST'])
 # def handle_image():
@@ -136,17 +220,48 @@ def contact():
     return render_template("contact.html")
 
 
-@app.route('/form', methods=["GET","POST"])
+@app.route("/admin_dashboard", methods=["GET", "POST"])
+def admin_dashboard():
+    if not current_user.is_authenticated or not current_user.is_admin:
+        flash("Access denied", "danger")
+        return redirect(url_for("home_page"))
+    
+    users = Users.query.all()
+    return render_template("admin_dashboard.html", users=users)
+
+
+@app.route("/tag_criminal/<int:user_id>", methods=["POST"])
+def tag_criminal(user_id):
+    if not current_user.is_authenticated or not current_user.is_admin:
+        flash("Access denied", "danger")
+        return redirect(url_for("home_page"))
+    
+    user = Users.query.get_or_404(user_id)
+    user.criminal_activity = not user.criminal_activity  # Toggle criminal status
+    db.session.commit()
+    flash(f"Car {user.number_plate} criminal status updated.", "success")
+    return redirect(url_for("admin_dashboard"))
+
+
+
+@app.route('/form', methods=["GET", "POST"])
 def form():
-    if request.method=="POST":
-        number_plate=request.form.get("form-page-number-plate")
-        number_plate=number_plate.upper()
-        print("number plate", number_plate)
+    if request.method == "POST":
+        # Get the number plate from the form and convert it to uppercase
+        number_plate = request.form.get("form-page-number-plate").upper()
+        print(f"Searching for number plate: {number_plate}")  # Debugging output
+        
+        # Try to find the user in the database
         user = Users.query.filter_by(number_plate=number_plate).first()
-        if user is not None:  # Check if a user was found
-            session['car_dictionary'] = {
+        
+        # Initialize car_dictionary to store the information
+        car_dictionary = {}
+
+        if user is not None:  # If user is found in the database
+            # Populate car_dictionary with user data from the database
+            car_dictionary = {
                 "car_model": user.car_model,
-                "owner_name": user.car_owner_name,
+                "owner_name": user.name,
                 "fuel_type": user.fuel_type,
                 "number_plate": user.number_plate,
                 "engine_number": user.engine_number,
@@ -155,20 +270,28 @@ def form():
                 "vehicle_color": user.vehicle_color,
                 "seat_capacity": user.seat_capacity,
                 "manufacturing_time": user.manufacturing_time,
-                "phone_number":user.phone_number
+                "phone_number": user.phone_number,
+                "criminal_activity": user.criminal_activity 
             }
-            print("We are in database")
-        else:
-            session['car_dictionary']=rto_info(number_plate)
-            print("we are in api")
-        # print(number_plate)
-        # print(car_dictionary['fuel_type'])
-        # print(car_dictionary['car_model'])
-        # print(car_dictionary['owner_name'])
-        return render_template("search.html",car_dictionary=session.get('car_dictionary',{}))
-        # print(number_plate)
-        # print(type(number_plate))
-    return render_template('form.html') 
+            print("Data found in database:", car_dictionary)
+        else:  # If user is not found, call the API
+            car_dictionary = rto_info(number_plate)  # Fetch data from the API
+            print("Data fetched from API:", car_dictionary)
+
+        # Store the result in the session
+        session['car_dictionary'] = car_dictionary
+
+        # Render the search.html template with the car_dictionary data
+        return render_template("search.html", car_dictionary=car_dictionary)
+
+    # Render the form page for GET requests
+    return render_template('form.html')
+
+
+
+@app.route("/home")
+def log_in_user_page():
+    return render_template('home.html')
 
 # @app.route("/log_in", methods=["GET","POST"])
 # def log_in():
@@ -199,8 +322,14 @@ def log_in():
             # If user exists and password matches
             if user and user.password == request.form.get("password-log-in-form"):
                 login_user(user)  # Log the user in
-                flash(f'Welcome, {user.name}! You have been logged in.', 'success')
-                return redirect(url_for("home_page"))
+                # flash(f'Welcome, {user.name}! You have been logged in.', 'success')
+                print("log in succesful")
+                print(user.name)
+                print(user.is_admin)
+                if user.is_admin:
+                    print("user is admin for login ")
+                    return redirect(url_for("admin_dashboard"))  
+                return redirect(url_for("log_in_user_page"))
             else:
                 # If login credentials are invalid
                 flash("Invalid email or password", "danger")
@@ -208,11 +337,14 @@ def log_in():
         
         except Exception as e:
             # Handle any unexpected errors
+            print(e)
             flash(f"An error occurred: {str(e)}", "danger")
             return render_template("log_in.html")
 
     # Render login page for GET requests
     return render_template("log_in.html")
+
+
 
 # @app.route("/sign_up", methods=["GET", "POST"])
 # def sign_up():
@@ -234,16 +366,42 @@ def log_in():
 #     return render_template("Sign_up.html")
 @app.route("/sign_up", methods=["GET", "POST"])
 def sign_up():
+    # clear_terminal()
     if request.method == "POST":
+        email = request.form.get("email-address-form")
+        domain = email.split("@")[-1]
+        if domain in ["gov.in", "police.org"]:
+            is_admin = True
+            print("THIS USER IS ADMIN")  # Automatically mark user as admin if from an authorized domain
+        else:
+            is_admin = False
         try:
+            print("we are in try")
             user = Users(
                 name=request.form.get("name-form"),
                 number_plate=request.form.get("number-plate-form").upper(),  # Convert to uppercase here
                 phone_number=request.form.get("phone-number-form"),
-                email=request.form.get("email-address-form"),
-                car_model=request.form.get("car-form").upper(),  # Ensure car_model is also in uppercase
-                password=request.form.get("password-form")  # Make sure to save the password
+                email=request.form.get("email-address-form"),  # Ensure car_model is also in uppercase
+                emergency_contact=request.form.get("emergency-number-form"), 
+                password=request.form.get("password-form"),
+                is_admin=is_admin
+                  # Make sure to save the password
             )
+            print("name", user.name)
+            print("number plate", user.number_plate)
+            print("phone number", user.phone_number)
+            print("email", user.email)
+            print("emergency number", user.emergency_contact)
+            print("car model", user.car_model)
+            print("password", user.password)
+
+
+
+
+
+
+
+
             db.session.add(user)
             db.session.commit()
             print("User added successfully.")
@@ -255,6 +413,10 @@ def sign_up():
             return render_template("Sign_up.html")
     return render_template("Sign_up.html")
         # db.create_all() 
+
+
+
+
 with app.app_context():
     try:
         db.create_all()

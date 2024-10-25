@@ -149,5 +149,5 @@ def process_image():
 #         print(f"Error fetching data: {e}")
 #         return {}
 
-m=rto_info("HP20C2190")
-print(m)
+# m=rto_info("HP20C2190")
+# print(m)
