@@ -116,7 +116,8 @@ def convert_image_to_text(image):
 def photo_page():
     return render_template("photo.html")
 
-def process_image(image_base64):
+def process_image_base64(image_base64):
+    
     try:
         # Convert base64 image to OpenCV format
         img = convert_base64_to_image(image_base64)
@@ -157,6 +158,13 @@ API_USERNAME = "ABHINANDAN"  # Your username
 @app.route('/process_image', methods=['POST'])
 def process_image():
     data = request.get_json()
+    image_file = '/home/abhinandan/Code/Git/static/Images/Captured_Image.png'  # Replace with your image file path
+    print("Tesseract command path:", pytesseract.pytesseract.tesseract_cmd)
+    
+    # Convert the image to textt
+    extracted_text = convert_image_to_text(image_file)
+    print(extracted_text)
+    
     
     if 'image' not in data:
         return jsonify({'error': 'No image data provided'}), 400
